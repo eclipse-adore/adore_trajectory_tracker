@@ -45,7 +45,6 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
-#include <catch2/catch.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 using namespace std::chrono_literals;
