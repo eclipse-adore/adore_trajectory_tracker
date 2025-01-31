@@ -14,6 +14,7 @@ find_package(Catch2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(adore_dynamics_conversions REQUIRED)
 find_package(adore_map_conversions REQUIRED)
+find_package(adore_math_conversions REQUIRED)
 
 # The code needed to make OptiNLC work
 find_package(osqp REQUIRED)
