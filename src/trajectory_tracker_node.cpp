@@ -116,6 +116,9 @@ TrajectoryTrackerNode::timer_callback()
   controls.steering_angle = 0.0;
   controls.acceleration   = -2.0;
 
+  if( latest_vehicle_state )
+    latest_vehicle_state->integrate_up_to_time( now().seconds() );
+
   if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
   {
     RCLCPP_INFO( get_logger(), "NO STATE OR NO TRAJECTORY" );
