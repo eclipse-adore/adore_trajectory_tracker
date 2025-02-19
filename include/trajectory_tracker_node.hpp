@@ -37,6 +37,7 @@
 #include "OptiNLC_Solver.h"
 #include "controllers/controller.hpp"
 #include "dynamics/integration.hpp"
+#include "dynamics/physical_vehicle_model.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -79,6 +80,7 @@ private:
 
   int controller_type;
 
+  dynamics::PhysicalVehicleModel model;
 
 public:
 

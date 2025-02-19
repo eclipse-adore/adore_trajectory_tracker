@@ -51,12 +51,17 @@ TrajectoryTrackerNode::initialize_controller()
       break;
   }
 
-  controllers::set_parameters( controller, command_limits, controller_settings );
+  controllers::set_parameters( controller, command_limits, controller_settings, model );
 }
 
 void
 TrajectoryTrackerNode::load_parameters()
 {
+  std::string vehicle_model_file;
+  declare_parameter( "vehicle_model_file", "" );
+  get_parameter( "vehicle_model_file", vehicle_model_file );
+  model = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
+
   declare_parameter( "set_controller", 0 ); // default set to MPC
   get_parameter( "set_controller", controller_type );
 
@@ -116,8 +121,12 @@ TrajectoryTrackerNode::timer_callback()
   controls.steering_angle = 0.0;
   controls.acceleration   = -2.0;
 
-  if( latest_vehicle_state )
-    latest_vehicle_state->integrate_up_to_time( now().seconds() );
+  std::cerr << "tracking " << std::endl;
+  // if( latest_vehicle_state )
+  // {
+  //   dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
+  // }
+
 
   if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
   {
