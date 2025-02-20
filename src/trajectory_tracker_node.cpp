@@ -121,7 +121,6 @@ TrajectoryTrackerNode::timer_callback()
   controls.steering_angle = 0.0;
   controls.acceleration   = -2.0;
 
-  std::cerr << "tracking " << std::endl;
   // if( latest_vehicle_state )
   // {
   //   dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
