@@ -144,7 +144,7 @@ TrajectoryTrackerNode::timer_callback()
   }
   else
   {
-    auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
+    auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value(), now().seconds() );
     if( next_controls.has_value() )
       controls = next_controls.value();
     indicators_on( false, false ); // todo make work for turning
