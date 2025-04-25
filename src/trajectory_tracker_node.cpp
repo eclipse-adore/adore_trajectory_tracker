@@ -73,6 +73,10 @@ TrajectoryTrackerNode::load_parameters()
   get_parameter( "min_acceleration", command_limits.min_acceleration );
   get_parameter( "max_steering", command_limits.max_steering_angle );
 
+  command_limits.max_steering_angle = std::min( command_limits.max_steering_angle, model.params.steering_angle_max );
+  command_limits.max_acceleration   = std::min( command_limits.max_acceleration, model.params.acceleration_max );
+  command_limits.min_acceleration   = std::max( command_limits.min_acceleration, model.params.acceleration_min );
+
   std::vector<std::string> keys;
   std::vector<double>      values;
   declare_parameter( "controller_settings_keys", keys );
