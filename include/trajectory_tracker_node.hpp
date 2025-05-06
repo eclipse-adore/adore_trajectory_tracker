@@ -47,6 +47,7 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nlohmann/json.hpp>
 
 using namespace std::chrono_literals;
 
@@ -78,6 +79,8 @@ private:
 
   dynamics::VehicleCommandLimits command_limits;
 
+  std::unordered_map<std::string, std::vector<math::Polygon2d>> turn_indicator_zones;
+
   int controller_type;
 
   dynamics::PhysicalVehicleModel model;
@@ -85,6 +88,7 @@ private:
 public:
 
   void indicators_on( bool left, bool right );
+  void check_turn_indicator_zones();
 
   TrajectoryTrackerNode();
 
