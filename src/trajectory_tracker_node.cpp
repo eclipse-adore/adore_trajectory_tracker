@@ -174,6 +174,7 @@ TrajectoryTrackerNode::timer_callback()
   else if( latest_trajectory->label == "Standstill" )
   {
     controls.acceleration = -0.5;
+    controls.steering_angle = last_controls.steering_angle;
     indicators_on( false, false );
   }
   else
