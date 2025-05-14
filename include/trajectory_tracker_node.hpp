@@ -86,7 +86,7 @@ public:
 
   void indicators_on( bool left, bool right );
 
-  TrajectoryTrackerNode();
+    explicit TrajectoryTrackerNode(const rclcpp::NodeOptions & options);
 
   void load_parameters();
   void create_publishers();

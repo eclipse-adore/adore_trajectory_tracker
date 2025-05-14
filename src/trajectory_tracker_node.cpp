@@ -22,8 +22,8 @@ namespace adore
 {
 
 
-TrajectoryTrackerNode::TrajectoryTrackerNode() :
-  Node( "trajectory_tracker_node" )
+TrajectoryTrackerNode::TrajectoryTrackerNode(const rclcpp::NodeOptions & options) :
+  Node( "trajectory_tracker_node" , options)
 {
   load_parameters();
   create_publishers();
@@ -125,10 +125,10 @@ TrajectoryTrackerNode::timer_callback()
   controls.steering_angle = 0.0;
   controls.acceleration   = -2.0;
 
-  // if( latest_vehicle_state )
-  // {
-  //   dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
-  // }
+  if( latest_vehicle_state )
+  {
+    dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
+  }
 
 
   if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
@@ -190,7 +190,10 @@ int
 main( int argc, char* argv[] )
 {
   rclcpp::init( argc, argv );
-  rclcpp::spin( std::make_shared<adore::TrajectoryTrackerNode>() );
+  rclcpp::spin( std::make_shared<adore::TrajectoryTrackerNode>(rclcpp::NodeOptions{}) );
   rclcpp::shutdown();
   return 0;
 }
+
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(adore::TrajectoryTrackerNode)

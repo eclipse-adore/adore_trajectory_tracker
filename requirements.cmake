@@ -19,5 +19,4 @@ find_package(adore_math_conversions REQUIRED)
 # The code needed to make OptiNLC work
 find_package(osqp REQUIRED)
 set(osqp_TARGETS osqp::osqpstatic)
-target_link_libraries(trajectory_tracker_node PRIVATE ${OSQP_LIBRARIES})
 find_package(OptiNLC REQUIRED)
