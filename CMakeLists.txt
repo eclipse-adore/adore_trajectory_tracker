@@ -1,17 +1,14 @@
 cmake_minimum_required(VERSION 3.8)
+project(trajectory_tracker LANGUAGES CXX)
 
-get_filename_component(CURRENT_DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-string(TOLOWER ${CURRENT_DIR_NAME} PROJECT)
-project(${PROJECT})
-
-include($ENV{SOURCE_DIRECTORY}/libraries/adore_libraries.cmake)
-
-include(requirements.cmake)
+# C++20 strict mode
 set(CMAKE_CXX_STANDARD 20)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Ensure the Release build uses -O3 for optimization
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+# Build config
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_compile_options(-O3)
 endif()
@@ -20,38 +17,94 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-add_executable(${PROJECT} src/trajectory_tracker_node.cpp)
+# Required packages
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(adore_math REQUIRED)
+find_package(adore_controllers REQUIRED)
+find_package(adore_dynamics REQUIRED)
+find_package(adore_dynamics_conversions REQUIRED)
+find_package(adore_map REQUIRED)
+find_package(adore_ros2_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(osqp REQUIRED)
+find_package(OsqpEigen REQUIRED)
 
-target_include_directories(${PROJECT} PRIVATE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
+# Executable
+add_executable(${PROJECT_NAME} src/trajectory_tracker_node.cpp)
+
+target_include_directories(${PROJECT_NAME}
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
-add_all_target_include_directories(${PROJECT})
-add_all_target_link_libraries(${PROJECT})
-
-install(TARGETS
-    ${PROJECT}
-  DESTINATION lib/${PROJECT}
+ament_target_dependencies(${PROJECT_NAME}
+  rclcpp
+  rclcpp_components
+  adore_math
+  adore_dynamics
+  adore_dynamics_conversions
+  adore_map
+  adore_controllers
+  adore_ros2_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  geometry_msgs
+  osqp
+  OsqpEigen
 )
-target_link_libraries(${PROJECT}  PRIVATE ${OSQP_LIBRARIES})
 
+# Component library
+add_library(${PROJECT_NAME}_component SHARED src/trajectory_tracker_node.cpp)
 
+target_include_directories(${PROJECT_NAME}_component
+  PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
-add_library(trajectorytracker_component SHARED src/trajectory_tracker_node.cpp)
-add_all_target_include_directories(trajectorytracker_component)
-add_all_target_link_libraries(trajectorytracker_component)
+ament_target_dependencies(${PROJECT_NAME}_component
+  rclcpp
+  rclcpp_components
+  adore_math
+  adore_dynamics
+  adore_dynamics_conversions
+  adore_map
+  adore_controllers
+  adore_ros2_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  geometry_msgs
+  osqp
+  OsqpEigen
+)
+
+# Register the component
 rclcpp_components_register_node(
-  trajectorytracker_component
+  ${PROJECT_NAME}_component
   PLUGIN "adore::TrajectoryTrackerNode"
-  EXECUTABLE trajectorytrackernode
+  EXECUTABLE trajectory_tracker_exec
 )
-target_link_libraries(trajectorytracker_component  PRIVATE ${OSQP_LIBRARIES})
 
-install(TARGETS trajectorytracker_component
+# Installation
+install(TARGETS
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+# Headers
+install(DIRECTORY include/
+  DESTINATION include
 )
 
 ament_package()

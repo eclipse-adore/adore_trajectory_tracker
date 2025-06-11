@@ -31,21 +31,12 @@
 #include "adore_ros2_msgs/msg/trajectory.hpp"
 #include "adore_ros2_msgs/msg/vehicle_command.hpp"
 
-#include "OptiNLC_Data.h"
-#include "OptiNLC_OCP.h"
-#include "OptiNLC_Options.h"
-#include "OptiNLC_Solver.h"
 #include "controllers/controller.hpp"
 #include "dynamics/integration.hpp"
 #include "dynamics/physical_vehicle_model.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2/utils.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include "visualization_msgs/msg/marker.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 using namespace std::chrono_literals;
@@ -86,7 +77,7 @@ public:
 
   void indicators_on( bool left, bool right );
 
-    explicit TrajectoryTrackerNode(const rclcpp::NodeOptions & options);
+  explicit TrajectoryTrackerNode( const rclcpp::NodeOptions& options );
 
   void load_parameters();
   void create_publishers();

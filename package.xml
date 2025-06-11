@@ -9,15 +9,31 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>adore_ros2_msgs</build_depend>
-  <build_depend>adore_dynamics_conversions</build_depend>
-  <build_depend>adore_map_conversions</build_depend>
-  <build_depend>adore_math_conversions</build_depend>
- 
+  <!-- Build and exec dependencies -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>adore_math</depend>
+  <depend>adore_dynamics</depend>
+  <depend>adore_dynamics_conversions</depend>
+
+  <depend>adore_map</depend>
+  <depend>adore_controllers</depend>
+
+  <depend>adore_ros2_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>osqp</depend>
+  <depend>osqp_eigen</depend>
+
+  <!-- Test dependencies, optional -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
+    <rclcpp_components/>
   </export>
+
 </package>
