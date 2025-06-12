@@ -60,6 +60,11 @@ ament_target_dependencies(${PROJECT_NAME}
   OsqpEigen
 )
 
+install(TARGETS ${PROJECT_NAME}
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
 # Component library
 add_library(${PROJECT_NAME}_component SHARED src/trajectory_tracker_node.cpp)
 
@@ -90,12 +95,11 @@ ament_target_dependencies(${PROJECT_NAME}_component
 rclcpp_components_register_node(
   ${PROJECT_NAME}_component
   PLUGIN "adore::TrajectoryTrackerNode"
-  EXECUTABLE trajectory_tracker_exec
+  EXECUTABLE trajectorytracker
 )
 
 # Installation
 install(TARGETS
-  ${PROJECT_NAME}
   ${PROJECT_NAME}_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
