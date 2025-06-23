@@ -51,7 +51,7 @@ TrajectoryTrackerNode::initialize_controller()
       break;
   }
 
-  controllers::set_parameters( controller, command_limits, controller_settings, model );
+  controllers::set_parameters( controller, controller_settings, model );
 }
 
 void
@@ -64,18 +64,6 @@ TrajectoryTrackerNode::load_parameters()
 
   declare_parameter( "set_controller", 0 ); // default set to MPC
   get_parameter( "set_controller", controller_type );
-
-  declare_parameter( "max_acceleration", 2.0 );
-  declare_parameter( "min_acceleration", -2.0 );
-  declare_parameter( "max_steering", 0.7 );
-
-  get_parameter( "max_acceleration", command_limits.max_acceleration );
-  get_parameter( "min_acceleration", command_limits.min_acceleration );
-  get_parameter( "max_steering", command_limits.max_steering_angle );
-
-  command_limits.max_steering_angle = std::min( command_limits.max_steering_angle, model.params.steering_angle_max );
-  command_limits.max_acceleration   = std::min( command_limits.max_acceleration, model.params.acceleration_max );
-  command_limits.min_acceleration   = std::max( command_limits.min_acceleration, model.params.acceleration_min );
 
   std::vector<std::string> keys;
   std::vector<double>      values;

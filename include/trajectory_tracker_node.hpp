@@ -67,8 +67,6 @@ private:
 
   std::map<std::string, double> controller_settings;
 
-  dynamics::VehicleCommandLimits command_limits;
-
   int controller_type;
 
   dynamics::PhysicalVehicleModel model;
