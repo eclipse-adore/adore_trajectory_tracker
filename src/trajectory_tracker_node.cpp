@@ -93,6 +93,44 @@ TrajectoryTrackerNode::load_parameters()
   {
     controller_settings.insert( { keys[i], values[i] } );
   }
+  std::vector<std::vector<double>> turn_polygon_values_list; // turn zone polyons
+  std::string turn_polygons_file;
+  declare_parameter( "turn_polygons_file", "" );
+  get_parameter( "turn_polygons_file", turn_polygons_file );
+
+  if (turn_polygons_file != "")
+  {
+    std::ifstream ifs( turn_polygons_file );
+    if( !ifs.is_open() )
+    {
+      throw std::runtime_error( "Could not open file: " + turn_polygons_file ); 
+    }
+    nlohmann::json j;
+    ifs >> j;
+
+    // Convert the parameter into a Polygon2d
+    for( const auto& turn_polygon_zone : j )
+    {
+      std::string label = turn_polygon_zone.at("label");
+      const auto& points = turn_polygon_zone.at("polygon");
+      if( points.size() >= 3 ) // minimum 3 x, 3 y
+      {
+        adore::math::Polygon2d polygon;
+        for( const auto& point : points )
+        {
+          if( point.size() != 2 )
+          {
+            std::cerr << "invalied point size in polygon in the launch file" << std::endl;
+            return;
+          }
+          double x = point[0];
+          double y = point[1];
+          polygon.points.push_back( { x, y } );
+        }
+        turn_indicator_zones[label].push_back( polygon );
+      }
+    }
+  }
 }
 
 void
@@ -152,6 +190,7 @@ TrajectoryTrackerNode::timer_callback()
     if( next_controls.has_value() )
       controls = next_controls.value();
     indicators_on( false, false ); // todo make work for turning
+    check_turn_indicator_zones();
 
     if( auto* controller_ptr = std::get_if<controllers::iLQR>( &controller ) )
     {
@@ -162,6 +201,22 @@ TrajectoryTrackerNode::timer_callback()
 
   publisher_vehicle_command->publish( dynamics::conversions::to_ros_msg( controls ) );
   last_controls = controls;
+}
+
+void TrajectoryTrackerNode::check_turn_indicator_zones()
+{
+  if( !latest_vehicle_state )
+    return;
+  for( const auto& [label, polygons] : turn_indicator_zones )
+  {
+    for( const auto& polygon : polygons )
+    {
+      if( label == "Right" && polygon.point_inside( latest_vehicle_state.value() ) )
+        indicators_on( false, true );
+      if( label == "Left" && polygon.point_inside( latest_vehicle_state.value() ) )
+        indicators_on( true, false );
+    }
+  }
 }
 
 void

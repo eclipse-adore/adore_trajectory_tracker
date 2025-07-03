@@ -76,6 +76,8 @@ private:
 
   std::map<std::string, double> controller_settings;
 
+  std::unordered_map<std::string, std::vector<math::Polygon2d>> turn_indicator_zones;
+
   dynamics::VehicleCommandLimits command_limits;
 
   int controller_type;
@@ -85,6 +87,7 @@ private:
 public:
 
   void indicators_on( bool left, bool right );
+  void check_turn_indicator_zones();
 
     explicit TrajectoryTrackerNode(const rclcpp::NodeOptions & options);
 
