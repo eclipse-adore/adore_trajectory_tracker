@@ -44,7 +44,7 @@ TrajectoryTrackerNode::initialize_controller()
       break;
     default:
       controller = controllers::PassThrough();
-      RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to PID" );
+      RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to Passthrough" );
       break;
   }
 
