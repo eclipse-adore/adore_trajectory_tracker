@@ -98,7 +98,7 @@ TrajectoryTrackerNode::create_subscribers()
                                                                                             this, std::placeholders::_1 ) );
 
   subscriber_vehicle_state = create_subscription<adore_ros2_msgs::msg::VehicleStateDynamic>(
-    "vehicle_state/dynamic", 1, std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this, std::placeholders::_1 ) );
+    "vehicle_state_dynamic", 1, std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this, std::placeholders::_1 ) );
 }
 
 void
