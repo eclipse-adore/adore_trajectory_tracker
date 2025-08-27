@@ -26,9 +26,10 @@ TrajectoryTrackerNode::TrajectoryTrackerNode(const rclcpp::NodeOptions & options
   Node( "trajectory_tracker_node" , options)
 {
   load_parameters();
-  create_publishers();
+  create_publishers(); 
   create_subscribers();
   initialize_controller();
+  RCLCPP_INFO( get_logger(), "TrajectoryTrackerNode initialized succesfully." );
 }
 
 void
@@ -38,12 +39,15 @@ TrajectoryTrackerNode::initialize_controller()
   {
     case 0:
       controller = controllers::NMPC();
+      RCLCPP_INFO( get_logger(), "Using NMPC controller." );
       break;
     case 1:
       controller = controllers::PID();
+      RCLCPP_INFO( get_logger(), "Using PID controller." );
       break;
     case 2:
       controller = controllers::iLQR();
+      RCLCPP_INFO( get_logger(), "Using iLQR controller." );
       break;
     default:
       controller = controllers::PID();
@@ -171,21 +175,24 @@ TrajectoryTrackerNode::timer_callback()
 
   if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
   {
-    RCLCPP_INFO( get_logger(), "NO STATE OR NO TRAJECTORY" );
+    RCLCPP_WARN_SKIPFIRST_THROTTLE( get_logger(),*this->get_clock(),3000, "NO STATE OR NO TRAJECTORY" );
     indicators_on( true, true );
   }
   else if( ( latest_trajectory->label == "Emergency Stop" || latest_trajectory->label == "Requesting Assistance" ) )
   {
+    RCLCPP_WARN_THROTTLE( get_logger(),*this->get_clock(),3000, "Emergency or Assistance State" );
     indicators_on( true, true );
   }
   else if( latest_trajectory->label == "Standstill" )
   {
+    RCLCPP_INFO_THROTTLE( get_logger(),*this->get_clock(),3000, "Standing still." );
     controls.acceleration   = -0.5;
     controls.steering_angle = last_controls.steering_angle;
     indicators_on( false, false );
   }
   else
   {
+    RCLCPP_INFO_THROTTLE( get_logger(),*this->get_clock(),10000, "Tracking normally." );
     auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
     if( next_controls.has_value() )
       controls = next_controls.value();
