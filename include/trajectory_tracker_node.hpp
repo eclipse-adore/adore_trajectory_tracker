@@ -10,6 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
+
 #pragma once
 #include <cmath>
 #include <math.h>
