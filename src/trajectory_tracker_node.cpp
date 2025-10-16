@@ -54,20 +54,13 @@ TrajectoryTrackerNode::initialize_controller()
 void
 TrajectoryTrackerNode::load_parameters()
 {
-  std::string vehicle_model_file;
-  declare_parameter( "vehicle_model_file", "" );
-  get_parameter( "vehicle_model_file", vehicle_model_file );
-  model = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
+  std::string vehicle_model_file = declare_parameter( "vehicle_model_file", "" );
+  model                          = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
 
-  declare_parameter( "set_controller", 0 ); // default set to MPC
-  get_parameter( "set_controller", controller_type );
+  controller_type = declare_parameter( "set_controller", 0 ); // default set to MPC
 
-  std::vector<std::string> keys;
-  std::vector<double>      values;
-  declare_parameter( "controller_settings_keys", keys );
-  declare_parameter( "controller_settings_values", values );
-  get_parameter( "controller_settings_keys", keys );
-  get_parameter( "controller_settings_values", values );
+  std::vector<std::string> keys   = declare_parameter( "controller_settings_keys", std::vector<std::string>{} );
+  std::vector<double>      values = declare_parameter( "controller_settings_values", std::vector<double>{} );
 
   if( keys.size() != values.size() )
   {
@@ -83,9 +76,9 @@ TrajectoryTrackerNode::load_parameters()
 void
 TrajectoryTrackerNode::create_publishers()
 {
-  publisher_vehicle_command          = create_publisher<adore_ros2_msgs::msg::VehicleCommand>( "next_vehicle_command", 1 );
+  publisher_vehicle_command          = create_publisher<VehicleCommandAdapter>( "next_vehicle_command", 1 );
   publisher_warning_indicator_lights = create_publisher<adore_ros2_msgs::msg::IndicatorState>( "FUN/IndicatorCommand", 1 );
-  publisher_controller_trajectory    = create_publisher<adore_ros2_msgs::msg::Trajectory>( "controller_trajectory", 1 );
+  publisher_controller_trajectory    = create_publisher<TrajectoryAdapter>( "controller_trajectory", 1 );
 }
 
 void
@@ -93,12 +86,13 @@ TrajectoryTrackerNode::create_subscribers()
 {
   main_timer = create_wall_timer( 50ms, std::bind( &TrajectoryTrackerNode::timer_callback, this ) );
 
-  subscriber_trajectory = create_subscription<adore_ros2_msgs::msg::Trajectory>( "trajectory_decision", 1,
-                                                                                 std::bind( &TrajectoryTrackerNode::trajectory_callback,
-                                                                                            this, std::placeholders::_1 ) );
+  subscriber_trajectory = create_subscription<TrajectoryAdapter>( "trajectory_decision", 1,
+                                                                  std::bind( &TrajectoryTrackerNode::trajectory_callback, this,
+                                                                             std::placeholders::_1 ) );
 
-  subscriber_vehicle_state = create_subscription<adore_ros2_msgs::msg::VehicleStateDynamic>(
-    "vehicle_state_dynamic", 1, std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this, std::placeholders::_1 ) );
+  subscriber_vehicle_state = create_subscription<StateAdapter>( "vehicle_state_dynamic", 1,
+                                                                std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this,
+                                                                           std::placeholders::_1 ) );
 }
 
 void
@@ -135,16 +129,16 @@ TrajectoryTrackerNode::timer_callback()
     auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
     if( next_controls.has_value() )
       controls = next_controls.value();
-    indicators_on( false, false ); // todo make work for turning
+    indicators_on( false, false );
 
     if( auto* controller_ptr = std::get_if<controllers::iLQR>( &controller ) )
     {
       auto last_traj = controller_ptr->get_last_trajectory();
-      publisher_controller_trajectory->publish( dynamics::conversions::to_ros_msg( last_traj ) );
+      publisher_controller_trajectory->publish( last_traj );
     }
   }
 
-  publisher_vehicle_command->publish( dynamics::conversions::to_ros_msg( controls ) );
+  publisher_vehicle_command->publish( controls );
   last_controls = controls;
 }
 
@@ -158,15 +152,15 @@ TrajectoryTrackerNode::indicators_on( bool left, bool right )
 }
 
 void
-TrajectoryTrackerNode::trajectory_callback( const adore_ros2_msgs::msg::Trajectory& msg )
+TrajectoryTrackerNode::trajectory_callback( const dynamics::Trajectory& trajectory )
 {
-  latest_trajectory = dynamics::conversions::to_cpp_type( msg );
+  latest_trajectory = trajectory;
 }
 
 void
-TrajectoryTrackerNode::vehicle_state_callback( const adore_ros2_msgs::msg::VehicleStateDynamic& msg )
+TrajectoryTrackerNode::vehicle_state_callback( const dynamics::VehicleStateDynamic& state )
 {
-  latest_vehicle_state = dynamics::conversions::to_cpp_type( msg );
+  latest_vehicle_state = state;
 }
 
 } // namespace adore

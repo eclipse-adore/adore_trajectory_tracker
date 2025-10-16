@@ -21,7 +21,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(adore_math REQUIRED)
 find_package(adore_controllers REQUIRED)
 find_package(adore_dynamics REQUIRED)
 find_package(adore_dynamics_conversions REQUIRED)
@@ -31,8 +30,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(osqp REQUIRED)
-find_package(OsqpEigen REQUIRED)
 
 # Executable
 add_executable(${PROJECT_NAME} src/trajectory_tracker_node.cpp)
@@ -46,7 +43,6 @@ target_include_directories(${PROJECT_NAME}
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   rclcpp_components
-  adore_math
   adore_dynamics
   adore_dynamics_conversions
   adore_map
@@ -56,8 +52,6 @@ ament_target_dependencies(${PROJECT_NAME}
   tf2_ros
   tf2_geometry_msgs
   geometry_msgs
-  osqp
-  OsqpEigen
 )
 
 install(TARGETS ${PROJECT_NAME}
@@ -77,7 +71,6 @@ target_include_directories(${PROJECT_NAME}_component
 ament_target_dependencies(${PROJECT_NAME}_component
   rclcpp
   rclcpp_components
-  adore_math
   adore_dynamics
   adore_dynamics_conversions
   adore_map
@@ -87,8 +80,6 @@ ament_target_dependencies(${PROJECT_NAME}_component
   tf2_ros
   tf2_geometry_msgs
   geometry_msgs
-  osqp
-  OsqpEigen
 )
 
 # Register the component

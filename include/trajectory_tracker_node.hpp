@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 
+#include "adore_dynamics_adapters.hpp"
 #include "adore_dynamics_conversions.hpp"
 #include "adore_math/PiecewisePolynomial.h"
 #include "adore_ros2_msgs/msg/indicator_state.hpp"
@@ -51,12 +52,12 @@ private:
 
   /******************************* PUBLISHERS RELATED MEMBERS ************************************************************/
   rclcpp::TimerBase::SharedPtr                                       main_timer;
-  rclcpp::Publisher<adore_ros2_msgs::msg::VehicleCommand>::SharedPtr publisher_vehicle_command;
+  rclcpp::Publisher<VehicleCommandAdapter>::SharedPtr                publisher_vehicle_command;
   rclcpp::Publisher<adore_ros2_msgs::msg::IndicatorState>::SharedPtr publisher_warning_indicator_lights;
-  rclcpp::Publisher<adore_ros2_msgs::msg::Trajectory>::SharedPtr     publisher_controller_trajectory;
+  rclcpp::Publisher<TrajectoryAdapter>::SharedPtr                    publisher_controller_trajectory;
 
-  rclcpp::Subscription<adore_ros2_msgs::msg::Trajectory>::SharedPtr          subscriber_trajectory;
-  rclcpp::Subscription<adore_ros2_msgs::msg::VehicleStateDynamic>::SharedPtr subscriber_vehicle_state;
+  rclcpp::Subscription<TrajectoryAdapter>::SharedPtr subscriber_trajectory;
+  rclcpp::Subscription<StateAdapter>::SharedPtr      subscriber_vehicle_state;
 
   std::optional<dynamics::VehicleStateDynamic> latest_vehicle_state = std::nullopt;
   std::optional<dynamics::Trajectory>          latest_trajectory    = std::nullopt;
@@ -84,7 +85,7 @@ public:
 
   void timer_callback();
 
-  void trajectory_callback( const adore_ros2_msgs::msg::Trajectory& msg );
-  void vehicle_state_callback( const adore_ros2_msgs::msg::VehicleStateDynamic& msg );
+  void trajectory_callback( const dynamics::Trajectory& msg );
+  void vehicle_state_callback( const dynamics::VehicleStateDynamic& msg );
 };
 } // namespace adore
