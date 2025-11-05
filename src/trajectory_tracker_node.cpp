@@ -1,17 +1,14 @@
 /********************************************************************************
- * Copyright (C) 2017-2025 German Aerospace Center (DLR).
- * Eclipse ADORe, Automated Driving Open Research https://eclipse.org/adore
+ * Copyright (c) 2025 Contributors to the Eclipse Foundation
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0.
+ * https://www.eclipse.org/legal/epl-2.0
  *
  * SPDX-License-Identifier: EPL-2.0
- *
- * Contributors:
- *    Mikkel Skov Maarssø
- *    Sanath Himasekhar
- *    Marko Mizdrak
  ********************************************************************************/
 
 #include "trajectory_tracker_node.hpp"
@@ -26,9 +23,10 @@ TrajectoryTrackerNode::TrajectoryTrackerNode( const rclcpp::NodeOptions& options
   Node( "trajectory_tracker_node", options )
 {
   load_parameters();
-  create_publishers();
+  create_publishers(); 
   create_subscribers();
   initialize_controller();
+  RCLCPP_INFO( get_logger(), "TrajectoryTrackerNode initialized succesfully." );
 }
 
 void
@@ -41,9 +39,11 @@ TrajectoryTrackerNode::initialize_controller()
       break;
     case 1:
       controller = controllers::PID();
+      RCLCPP_INFO( get_logger(), "Using PID controller." );
       break;
     case 2:
       controller = controllers::iLQR();
+      RCLCPP_INFO( get_logger(), "Using iLQR controller." );
       break;
     default:
       controller = controllers::PassThrough();
@@ -73,6 +73,44 @@ TrajectoryTrackerNode::load_parameters()
   for( size_t i = 0; i < keys.size(); ++i )
   {
     controller_settings.insert( { keys[i], values[i] } );
+  }
+  std::vector<std::vector<double>> turn_polygon_values_list; // turn zone polyons
+  std::string turn_polygons_file;
+  declare_parameter( "turn_polygons_file", "" );
+  get_parameter( "turn_polygons_file", turn_polygons_file );
+
+  if (turn_polygons_file != "")
+  {
+    std::ifstream ifs( turn_polygons_file );
+    if( !ifs.is_open() )
+    {
+      throw std::runtime_error( "Could not open file: " + turn_polygons_file ); 
+    }
+    nlohmann::json j;
+    ifs >> j;
+
+    // Convert the parameter into a Polygon2d
+    for( const auto& turn_polygon_zone : j )
+    {
+      std::string label = turn_polygon_zone.at("label");
+      const auto& points = turn_polygon_zone.at("polygon");
+      if( points.size() >= 3 ) // minimum 3 x, 3 y
+      {
+        adore::math::Polygon2d polygon;
+        for( const auto& point : points )
+        {
+          if( point.size() != 2 )
+          {
+            std::cerr << "invalied point size in polygon in the launch file" << std::endl;
+            return;
+          }
+          double x = point[0];
+          double y = point[1];
+          polygon.points.push_back( { x, y } );
+        }
+        turn_indicator_zones[label].push_back( polygon );
+      }
+    }
   }
 }
 
@@ -115,11 +153,12 @@ TrajectoryTrackerNode::timer_callback()
 
   if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
   {
-    RCLCPP_INFO( get_logger(), "NO STATE OR NO TRAJECTORY" );
+    RCLCPP_WARN_SKIPFIRST_THROTTLE( get_logger(),*this->get_clock(),3000, "NO STATE OR NO TRAJECTORY" );
     indicators_on( true, true );
   }
   else if( ( latest_trajectory->label == "Emergency Stop" || latest_trajectory->label == "Requesting Assistance" ) )
   {
+    RCLCPP_WARN_THROTTLE( get_logger(),*this->get_clock(),3000, "Emergency or Assistance State" );
     indicators_on( true, true );
   }
   else if( latest_trajectory->label == "Standstill" )
@@ -129,6 +168,7 @@ TrajectoryTrackerNode::timer_callback()
   }
   else
   {
+    RCLCPP_INFO_THROTTLE( get_logger(),*this->get_clock(),10000, "Tracking normally." );
     auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
     if( next_controls.has_value() )
       controls = next_controls.value();
