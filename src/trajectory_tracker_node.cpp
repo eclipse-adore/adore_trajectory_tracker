@@ -37,9 +37,12 @@ TrajectoryTrackerNode::initialize_controller()
   switch( controller_type )
   {
     case 0:
-      controller = controllers::PID();
+      controller = controllers::PurePursuit();
       break;
     case 1:
+      controller = controllers::PID();
+      break;
+    case 2:
       controller = controllers::iLQR();
       break;
     default:
