@@ -85,5 +85,7 @@ public:
 
   void trajectory_callback( const dynamics::Trajectory& msg );
   void vehicle_state_callback( const dynamics::VehicleStateDynamic& msg );
+
+  void update_blinker_state();
 };
 } // namespace adore

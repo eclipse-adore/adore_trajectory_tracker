@@ -45,6 +45,10 @@ TrajectoryTrackerNode::initialize_controller()
       controller = controllers::iLQR();
       RCLCPP_INFO( get_logger(), "Using iLQR controller." );
       break;
+    case 3:
+      controller = controllers::MPC();
+      RCLCPP_INFO( get_logger(), "Using MPC controller." );
+      break;
     default:
       controller = controllers::PassThrough();
       RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to Passthrough" );
@@ -74,43 +78,6 @@ TrajectoryTrackerNode::load_parameters()
   {
     controller_settings.insert( { keys[i], values[i] } );
   }
-  std::vector<std::vector<double>> turn_polygon_values_list; // turn zone polyons
-  std::string                      turn_polygons_file;
-  declare_parameter( "turn_polygons_file", "" );
-  get_parameter( "turn_polygons_file", turn_polygons_file );
-
-  if( turn_polygons_file != "" )
-  {
-    std::ifstream ifs( turn_polygons_file );
-    if( !ifs.is_open() )
-    {
-      throw std::runtime_error( "Could not open file: " + turn_polygons_file );
-    }
-    nlohmann::json j;
-    ifs >> j;
-
-    // Convert the parameter into a Polygon2d
-    for( const auto& turn_polygon_zone : j )
-    {
-      std::string label  = turn_polygon_zone.at( "label" );
-      const auto& points = turn_polygon_zone.at( "polygon" );
-      if( points.size() >= 3 ) // minimum 3 x, 3 y
-      {
-        adore::math::Polygon2d polygon;
-        for( const auto& point : points )
-        {
-          if( point.size() != 2 )
-          {
-            std::cerr << "invalied point size in polygon in the launch file" << std::endl;
-            return;
-          }
-          double x = point[0];
-          double y = point[1];
-          polygon.points.push_back( { x, y } );
-        }
-      }
-    }
-  }
 }
 
 void
@@ -138,50 +105,57 @@ TrajectoryTrackerNode::create_subscribers()
 void
 TrajectoryTrackerNode::timer_callback()
 {
-  dynamics::VehicleCommand controls;
+  dynamics::VehicleCommand controls{};
+  constexpr double         emergency_accel  = -2.0;
+  constexpr double         standstill_accel = -0.5;
 
-  // default to emergency
+  // Default to emergency
   controls.steering_angle = 0.0;
-  controls.acceleration   = -2.0;
+  controls.acceleration   = emergency_accel;
 
   if( latest_vehicle_state )
   {
     dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
   }
 
+  if( latest_vehicle_state && latest_trajectory )
+  {
+    const auto& label = latest_trajectory->label;
 
-  if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
-  {
-    RCLCPP_WARN_SKIPFIRST_THROTTLE( get_logger(), *this->get_clock(), 3000, "NO STATE OR NO TRAJECTORY" );
-    indicators_on( true, true );
-  }
-  else if( ( latest_trajectory->label == "Emergency Stop" || latest_trajectory->label == "Requesting Assistance" ) )
-  {
-    RCLCPP_WARN_THROTTLE( get_logger(), *this->get_clock(), 3000, "Emergency or Assistance State" );
-    indicators_on( true, true );
-  }
-  else if( latest_trajectory->label == "Standstill" )
-  {
-    controls.acceleration = -0.5;
-    indicators_on( false, false );
-  }
-  else
-  {
-    RCLCPP_INFO_THROTTLE( get_logger(), *this->get_clock(), 10000, "Tracking normally." );
-    auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
-    if( next_controls.has_value() )
-      controls = next_controls.value();
-    indicators_on( false, false );
-
-    if( auto* controller_ptr = std::get_if<controllers::iLQR>( &controller ) )
+    if( label == "Standstill" )
     {
-      auto last_traj = controller_ptr->get_last_trajectory();
+      controls.acceleration = standstill_accel;
+    }
+    else if( label != "Emergency Stop" && label != "Requesting Assistance" )
+    {
+      auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, *latest_vehicle_state );
+      if( next_controls )
+        controls = *next_controls;
+
+      auto last_traj = controllers::get_last_trajectory( controller );
       publisher_controller_trajectory->publish( last_traj );
     }
   }
-
+  update_blinker_state();
   publisher_vehicle_command->publish( controls );
   last_controls = controls;
+}
+
+void
+TrajectoryTrackerNode::update_blinker_state()
+{
+  if( !latest_vehicle_state || !latest_trajectory )
+  {
+    indicators_on( true, true );
+    return;
+  }
+  const auto& label = latest_trajectory->label;
+  if( label == "Emergency Stop" || label == "Requesting Assistance" )
+  {
+    indicators_on( true, true );
+    return;
+  }
+  indicators_on( false, false );
 }
 
 void
