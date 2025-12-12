@@ -19,11 +19,11 @@ namespace adore
 {
 
 
-TrajectoryTrackerNode::TrajectoryTrackerNode(const rclcpp::NodeOptions & options) :
-  Node( "trajectory_tracker_node" , options)
+TrajectoryTrackerNode::TrajectoryTrackerNode( const rclcpp::NodeOptions& options ) :
+  Node( "trajectory_tracker_node", options )
 {
   load_parameters();
-  create_publishers(); 
+  create_publishers();
   create_subscribers();
   initialize_controller();
   RCLCPP_INFO( get_logger(), "TrajectoryTrackerNode initialized succesfully." );
@@ -35,8 +35,7 @@ TrajectoryTrackerNode::initialize_controller()
   switch( controller_type )
   {
     case 0:
-      controller = controllers::NMPC();
-      RCLCPP_INFO( get_logger(), "Using NMPC controller." );
+      controller = controllers::PurePursuit();
       break;
     case 1:
       controller = controllers::PID();
@@ -46,44 +45,29 @@ TrajectoryTrackerNode::initialize_controller()
       controller = controllers::iLQR();
       RCLCPP_INFO( get_logger(), "Using iLQR controller." );
       break;
+    case 3:
+      controller = controllers::MPC();
+      RCLCPP_INFO( get_logger(), "Using MPC controller." );
+      break;
     default:
-      controller = controllers::PID();
-      RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to PID" );
+      controller = controllers::PassThrough();
+      RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to Passthrough" );
       break;
   }
 
-  controllers::set_parameters( controller, command_limits, controller_settings, model );
+  controllers::set_parameters( controller, controller_settings, model );
 }
 
 void
 TrajectoryTrackerNode::load_parameters()
 {
-  std::string vehicle_model_file;
-  declare_parameter( "vehicle_model_file", "" );
-  get_parameter( "vehicle_model_file", vehicle_model_file );
-  model = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
+  std::string vehicle_model_file = declare_parameter( "vehicle_model_file", "" );
+  model                          = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
 
-  declare_parameter( "set_controller", 0 ); // default set to MPC
-  get_parameter( "set_controller", controller_type );
+  controller_type = declare_parameter( "set_controller", 0 ); // default set to MPC
 
-  declare_parameter( "max_acceleration", 2.0 );
-  declare_parameter( "min_acceleration", -2.0 );
-  declare_parameter( "max_steering", 0.7 );
-
-  get_parameter( "max_acceleration", command_limits.max_acceleration );
-  get_parameter( "min_acceleration", command_limits.min_acceleration );
-  get_parameter( "max_steering", command_limits.max_steering_angle );
-
-  command_limits.max_steering_angle = std::min( command_limits.max_steering_angle, model.params.steering_angle_max );
-  command_limits.max_acceleration   = std::min( command_limits.max_acceleration, model.params.acceleration_max );
-  command_limits.min_acceleration   = std::max( command_limits.min_acceleration, model.params.acceleration_min );
-
-  std::vector<std::string> keys;
-  std::vector<double>      values;
-  declare_parameter( "controller_settings_keys", keys );
-  declare_parameter( "controller_settings_values", values );
-  get_parameter( "controller_settings_keys", keys );
-  get_parameter( "controller_settings_values", values );
+  std::vector<std::string> keys   = declare_parameter( "controller_settings_keys", std::vector<std::string>{} );
+  std::vector<double>      values = declare_parameter( "controller_settings_values", std::vector<double>{} );
 
   if( keys.size() != values.size() )
   {
@@ -94,52 +78,14 @@ TrajectoryTrackerNode::load_parameters()
   {
     controller_settings.insert( { keys[i], values[i] } );
   }
-  std::vector<std::vector<double>> turn_polygon_values_list; // turn zone polyons
-  std::string turn_polygons_file;
-  declare_parameter( "turn_polygons_file", "" );
-  get_parameter( "turn_polygons_file", turn_polygons_file );
-
-  if (turn_polygons_file != "")
-  {
-    std::ifstream ifs( turn_polygons_file );
-    if( !ifs.is_open() )
-    {
-      throw std::runtime_error( "Could not open file: " + turn_polygons_file ); 
-    }
-    nlohmann::json j;
-    ifs >> j;
-
-    // Convert the parameter into a Polygon2d
-    for( const auto& turn_polygon_zone : j )
-    {
-      std::string label = turn_polygon_zone.at("label");
-      const auto& points = turn_polygon_zone.at("polygon");
-      if( points.size() >= 3 ) // minimum 3 x, 3 y
-      {
-        adore::math::Polygon2d polygon;
-        for( const auto& point : points )
-        {
-          if( point.size() != 2 )
-          {
-            std::cerr << "invalied point size in polygon in the launch file" << std::endl;
-            return;
-          }
-          double x = point[0];
-          double y = point[1];
-          polygon.points.push_back( { x, y } );
-        }
-        turn_indicator_zones[label].push_back( polygon );
-      }
-    }
-  }
 }
 
 void
 TrajectoryTrackerNode::create_publishers()
 {
-  publisher_vehicle_command          = create_publisher<adore_ros2_msgs::msg::VehicleCommand>( "next_vehicle_command", 1 );
+  publisher_vehicle_command          = create_publisher<VehicleCommandAdapter>( "next_vehicle_command", 1 );
   publisher_warning_indicator_lights = create_publisher<adore_ros2_msgs::msg::IndicatorState>( "FUN/IndicatorCommand", 1 );
-  publisher_controller_trajectory    = create_publisher<adore_ros2_msgs::msg::Trajectory>( "controller_trajectory", 1 );
+  publisher_controller_trajectory    = create_publisher<TrajectoryAdapter>( "controller_trajectory", 1 );
 }
 
 void
@@ -147,80 +93,69 @@ TrajectoryTrackerNode::create_subscribers()
 {
   main_timer = create_wall_timer( 50ms, std::bind( &TrajectoryTrackerNode::timer_callback, this ) );
 
-  subscriber_trajectory = create_subscription<adore_ros2_msgs::msg::Trajectory>( "trajectory_decision", 1,
-                                                                                 std::bind( &TrajectoryTrackerNode::trajectory_callback,
-                                                                                            this, std::placeholders::_1 ) );
+  subscriber_trajectory = create_subscription<TrajectoryAdapter>( "trajectory_decision", 1,
+                                                                  std::bind( &TrajectoryTrackerNode::trajectory_callback, this,
+                                                                             std::placeholders::_1 ) );
 
-  subscriber_vehicle_state = create_subscription<adore_ros2_msgs::msg::VehicleStateDynamic>(
-    "vehicle_state/dynamic", 1, std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this, std::placeholders::_1 ) );
+  subscriber_vehicle_state = create_subscription<StateAdapter>( "vehicle_state_dynamic", 1,
+                                                                std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this,
+                                                                           std::placeholders::_1 ) );
 }
 
 void
 TrajectoryTrackerNode::timer_callback()
 {
-  dynamics::VehicleCommand controls;
+  dynamics::VehicleCommand controls{};
+  constexpr double         emergency_accel  = -2.0;
+  constexpr double         standstill_accel = -0.5;
 
-  // default to emergency
+  // Default to emergency
   controls.steering_angle = 0.0;
-  controls.acceleration   = -2.0;
+  controls.acceleration   = emergency_accel;
 
   if( latest_vehicle_state )
   {
     dynamics::integrate_up_to_time( *latest_vehicle_state, last_controls, now().seconds(), model.motion_model );
   }
 
+  if( latest_vehicle_state && latest_trajectory )
+  {
+    const auto& label = latest_trajectory->label;
 
-  if( !( latest_vehicle_state.has_value() && latest_trajectory.has_value() ) )
-  {
-    RCLCPP_WARN_SKIPFIRST_THROTTLE( get_logger(),*this->get_clock(),3000, "NO STATE OR NO TRAJECTORY" );
-    indicators_on( true, true );
-  }
-  else if( ( latest_trajectory->label == "Emergency Stop" || latest_trajectory->label == "Requesting Assistance" ) )
-  {
-    RCLCPP_WARN_THROTTLE( get_logger(),*this->get_clock(),3000, "Emergency or Assistance State" );
-    indicators_on( true, true );
-  }
-  else if( latest_trajectory->label == "Standstill" )
-  {
-    RCLCPP_INFO_THROTTLE( get_logger(),*this->get_clock(),3000, "Standing still." );
-    controls.acceleration   = -0.5;
-    controls.steering_angle = last_controls.steering_angle;
-    indicators_on( false, false );
-  }
-  else
-  {
-    RCLCPP_INFO_THROTTLE( get_logger(),*this->get_clock(),10000, "Tracking normally." );
-    auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, latest_vehicle_state.value() );
-    if( next_controls.has_value() )
-      controls = next_controls.value();
-    indicators_on( false, false ); // todo make work for turning
-    check_turn_indicator_zones();
-
-    if( auto* controller_ptr = std::get_if<controllers::iLQR>( &controller ) )
+    if( label == "Standstill" )
     {
-      auto last_traj = controller_ptr->get_last_trajectory();
-      publisher_controller_trajectory->publish( dynamics::conversions::to_ros_msg( last_traj ) );
+      controls.acceleration = standstill_accel;
+    }
+    else if( label != "Emergency Stop" && label != "Requesting Assistance" )
+    {
+      auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, *latest_vehicle_state );
+      if( next_controls )
+        controls = *next_controls;
+
+      auto last_traj = controllers::get_last_trajectory( controller );
+      publisher_controller_trajectory->publish( last_traj );
     }
   }
-
-  publisher_vehicle_command->publish( dynamics::conversions::to_ros_msg( controls ) );
+  update_blinker_state();
+  publisher_vehicle_command->publish( controls );
   last_controls = controls;
 }
 
-void TrajectoryTrackerNode::check_turn_indicator_zones()
+void
+TrajectoryTrackerNode::update_blinker_state()
 {
-  if( !latest_vehicle_state )
-    return;
-  for( const auto& [label, polygons] : turn_indicator_zones )
+  if( !latest_vehicle_state || !latest_trajectory )
   {
-    for( const auto& polygon : polygons )
-    {
-      if( label == "Right" && polygon.point_inside( latest_vehicle_state.value() ) )
-        indicators_on( false, true );
-      if( label == "Left" && polygon.point_inside( latest_vehicle_state.value() ) )
-        indicators_on( true, false );
-    }
+    indicators_on( true, true );
+    return;
   }
+  const auto& label = latest_trajectory->label;
+  if( label == "Emergency Stop" || label == "Requesting Assistance" )
+  {
+    indicators_on( true, true );
+    return;
+  }
+  indicators_on( false, false );
 }
 
 void
@@ -233,15 +168,15 @@ TrajectoryTrackerNode::indicators_on( bool left, bool right )
 }
 
 void
-TrajectoryTrackerNode::trajectory_callback( const adore_ros2_msgs::msg::Trajectory& msg )
+TrajectoryTrackerNode::trajectory_callback( const dynamics::Trajectory& trajectory )
 {
-  latest_trajectory = dynamics::conversions::to_cpp_type( msg );
+  latest_trajectory = trajectory;
 }
 
 void
-TrajectoryTrackerNode::vehicle_state_callback( const adore_ros2_msgs::msg::VehicleStateDynamic& msg )
+TrajectoryTrackerNode::vehicle_state_callback( const dynamics::VehicleStateDynamic& state )
 {
-  latest_vehicle_state = dynamics::conversions::to_cpp_type( msg );
+  latest_vehicle_state = state;
 }
 
 } // namespace adore
@@ -250,10 +185,10 @@ int
 main( int argc, char* argv[] )
 {
   rclcpp::init( argc, argv );
-  rclcpp::spin( std::make_shared<adore::TrajectoryTrackerNode>(rclcpp::NodeOptions{}) );
+  rclcpp::spin( std::make_shared<adore::TrajectoryTrackerNode>( rclcpp::NodeOptions{} ) );
   rclcpp::shutdown();
   return 0;
 }
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(adore::TrajectoryTrackerNode)
+RCLCPP_COMPONENTS_REGISTER_NODE( adore::TrajectoryTrackerNode )
