@@ -32,30 +32,50 @@ TrajectoryTrackerNode::TrajectoryTrackerNode( const rclcpp::NodeOptions& options
 void
 TrajectoryTrackerNode::initialize_controller()
 {
-  switch( controller_type )
+  set_controller_type();
+  controllers::set_parameters( controller, controller_settings, model );
+}
+
+void 
+TrajectoryTrackerNode::set_controller_type()
+{
+  if ( controller_type == "MPC")
   {
-    case 0:
       controller = controllers::PurePursuit();
-      break;
-    case 1:
-      controller = controllers::PID();
-      RCLCPP_INFO( get_logger(), "Using PID controller." );
-      break;
-    case 2:
-      controller = controllers::iLQR();
-      RCLCPP_INFO( get_logger(), "Using iLQR controller." );
-      break;
-    case 3:
-      controller = controllers::MPC();
-      RCLCPP_INFO( get_logger(), "Using MPC controller." );
-      break;
-    default:
-      controller = controllers::PassThrough();
-      RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to Passthrough" );
-      break;
+      RCLCPP_INFO( get_logger(), "Using Pure Pursuit controller." );
+      return;
   }
 
-  controllers::set_parameters( controller, controller_settings, model );
+  if ( controller_type == "PID")
+  {
+      controller = controllers::PID();
+      RCLCPP_INFO( get_logger(), "Using PID controller." );
+      return;
+  }
+
+  if ( controller_type == "iLQR")
+  {
+      controller = controllers::iLQR();
+      RCLCPP_INFO( get_logger(), "Using iLQR controller." );
+      return;
+  }
+
+  if ( controller_type == "MPC")
+  {
+      controller = controllers::PassThrough();
+      RCLCPP_INFO( get_logger(), "Using Pure Pursuit controller." );
+      return;
+  }
+
+  if ( controller_type == "Passthrough")
+  {
+      controller = controllers::PassThrough();
+      RCLCPP_INFO( get_logger(), "Using Passthrough controller." );
+      return;
+  }
+
+  controller = controllers::PassThrough();
+  RCLCPP_ERROR( get_logger(), "Unknown controller type. Reverting to Passthrough" );
 }
 
 void
@@ -64,7 +84,7 @@ TrajectoryTrackerNode::load_parameters()
   std::string vehicle_model_file = declare_parameter( "vehicle_model_file", "" );
   model                          = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
 
-  controller_type = declare_parameter( "set_controller", 0 ); // default set to MPC
+  controller_type = declare_parameter<std::string>( "set_controller", "MPC" ); // default set to MPC
 
   std::vector<std::string> keys   = declare_parameter( "controller_settings_keys", std::vector<std::string>{} );
   std::vector<double>      values = declare_parameter( "controller_settings_values", std::vector<double>{} );
@@ -122,11 +142,11 @@ TrajectoryTrackerNode::timer_callback()
   {
     const auto& label = latest_trajectory->label;
 
-    if( label == "Standstill" )
+    if( label == "waiting for mission" )
     {
       controls.acceleration = standstill_accel;
     }
-    else if( label != "Emergency Stop" && label != "Requesting Assistance" )
+    else if( label != "emergency stop" && label != "remote operations (waiting for remote operator instructions)" )
     {
       auto next_controls = controllers::get_next_vehicle_command( controller, *latest_trajectory, *latest_vehicle_state );
       if( next_controls )

@@ -66,7 +66,7 @@ private:
 
   std::map<std::string, double> controller_settings;
 
-  int controller_type;
+  std::string controller_type;
 
   dynamics::PhysicalVehicleModel model;
 
@@ -80,6 +80,7 @@ public:
   void create_publishers();
   void create_subscribers();
   void initialize_controller();
+  void set_controller_type();
 
   void timer_callback();
 
