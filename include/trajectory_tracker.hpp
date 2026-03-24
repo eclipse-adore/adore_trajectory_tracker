@@ -44,7 +44,7 @@ namespace adore
 {
 
 
-class TrajectoryTrackerNode : public rclcpp::Node
+class TrajectoryTracker: public rclcpp::Node
 {
 private:
 
@@ -74,7 +74,7 @@ public:
 
   void indicators_on( bool left, bool right );
 
-  explicit TrajectoryTrackerNode( const rclcpp::NodeOptions& options );
+  explicit TrajectoryTracker( const rclcpp::NodeOptions& options );
 
   void load_parameters();
   void create_publishers();

@@ -11,7 +11,7 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-#include "trajectory_tracker_node.hpp"
+#include "trajectory_tracker.hpp"
 
 using namespace std::chrono_literals;
 
@@ -19,25 +19,25 @@ namespace adore
 {
 
 
-TrajectoryTrackerNode::TrajectoryTrackerNode( const rclcpp::NodeOptions& options ) :
+TrajectoryTracker::TrajectoryTracker( const rclcpp::NodeOptions& options ) :
   Node( "trajectory_tracker_node", options )
 {
   load_parameters();
   create_publishers();
   create_subscribers();
   initialize_controller();
-  RCLCPP_INFO( get_logger(), "TrajectoryTrackerNode initialized succesfully." );
+  RCLCPP_INFO( get_logger(), "TrajectoryTrackerNinitialized succesfully." );
 }
 
 void
-TrajectoryTrackerNode::initialize_controller()
+TrajectoryTracker::initialize_controller()
 {
   set_controller_type();
   controllers::set_parameters( controller, controller_settings, model );
 }
 
 void 
-TrajectoryTrackerNode::set_controller_type()
+TrajectoryTracker::set_controller_type()
 {
   if ( controller_type == "MPC")
   {
@@ -79,7 +79,7 @@ TrajectoryTrackerNode::set_controller_type()
 }
 
 void
-TrajectoryTrackerNode::load_parameters()
+TrajectoryTracker::load_parameters()
 {
   std::string vehicle_model_file = declare_parameter( "vehicle_model_file", "" );
   model                          = dynamics::PhysicalVehicleModel( vehicle_model_file, false );
@@ -101,7 +101,7 @@ TrajectoryTrackerNode::load_parameters()
 }
 
 void
-TrajectoryTrackerNode::create_publishers()
+TrajectoryTracker::create_publishers()
 {
   publisher_vehicle_command          = create_publisher<VehicleCommandAdapter>( "next_vehicle_command", 1 );
   publisher_warning_indicator_lights = create_publisher<adore_ros2_msgs::msg::IndicatorState>( "FUN/IndicatorCommand", 1 );
@@ -109,21 +109,21 @@ TrajectoryTrackerNode::create_publishers()
 }
 
 void
-TrajectoryTrackerNode::create_subscribers()
+TrajectoryTracker::create_subscribers()
 {
-  main_timer = create_wall_timer( 50ms, std::bind( &TrajectoryTrackerNode::timer_callback, this ) );
+  main_timer = create_wall_timer( 50ms, std::bind( &TrajectoryTracker::timer_callback, this ) );
 
   subscriber_trajectory = create_subscription<TrajectoryAdapter>( "trajectory_decision", 1,
-                                                                  std::bind( &TrajectoryTrackerNode::trajectory_callback, this,
+                                                                  std::bind( &TrajectoryTracker::trajectory_callback, this,
                                                                              std::placeholders::_1 ) );
 
   subscriber_vehicle_state = create_subscription<StateAdapter>( "vehicle_state_dynamic", 1,
-                                                                std::bind( &TrajectoryTrackerNode::vehicle_state_callback, this,
+                                                                std::bind( &TrajectoryTracker::vehicle_state_callback, this,
                                                                            std::placeholders::_1 ) );
 }
 
 void
-TrajectoryTrackerNode::timer_callback()
+TrajectoryTracker::timer_callback()
 {
   dynamics::VehicleCommand controls{};
   constexpr double         emergency_accel  = -2.0;
@@ -162,7 +162,7 @@ TrajectoryTrackerNode::timer_callback()
 }
 
 void
-TrajectoryTrackerNode::update_blinker_state()
+TrajectoryTracker::update_blinker_state()
 {
   if( !latest_vehicle_state || !latest_trajectory )
   {
@@ -179,7 +179,7 @@ TrajectoryTrackerNode::update_blinker_state()
 }
 
 void
-TrajectoryTrackerNode::indicators_on( bool left, bool right )
+TrajectoryTracker::indicators_on( bool left, bool right )
 {
   adore_ros2_msgs::msg::IndicatorState warning_indicator_lights_msg_to_send;
   warning_indicator_lights_msg_to_send.left_indicator_on  = left;
@@ -188,27 +188,18 @@ TrajectoryTrackerNode::indicators_on( bool left, bool right )
 }
 
 void
-TrajectoryTrackerNode::trajectory_callback( const dynamics::Trajectory& trajectory )
+TrajectoryTracker::trajectory_callback( const dynamics::Trajectory& trajectory )
 {
   latest_trajectory = trajectory;
 }
 
 void
-TrajectoryTrackerNode::vehicle_state_callback( const dynamics::VehicleStateDynamic& state )
+TrajectoryTracker::vehicle_state_callback( const dynamics::VehicleStateDynamic& state )
 {
   latest_vehicle_state = state;
 }
 
 } // namespace adore
 
-int
-main( int argc, char* argv[] )
-{
-  rclcpp::init( argc, argv );
-  rclcpp::spin( std::make_shared<adore::TrajectoryTrackerNode>( rclcpp::NodeOptions{} ) );
-  rclcpp::shutdown();
-  return 0;
-}
-
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE( adore::TrajectoryTrackerNode )
+RCLCPP_COMPONENTS_REGISTER_NODE( adore::TrajectoryTracker)
