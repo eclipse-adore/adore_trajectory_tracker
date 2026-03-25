@@ -32,7 +32,10 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 # Executable
-add_executable(${PROJECT_NAME} src/trajectory_tracker_node.cpp)
+add_executable(${PROJECT_NAME} 
+  src/main.cpp
+  src/trajectory_tracker.cpp
+)
 
 target_include_directories(${PROJECT_NAME}
   PRIVATE
@@ -60,7 +63,7 @@ install(TARGETS ${PROJECT_NAME}
 
 
 # Component library
-add_library(${PROJECT_NAME}_component SHARED src/trajectory_tracker_node.cpp)
+add_library(${PROJECT_NAME}_component SHARED src/trajectory_tracker.cpp)
 
 target_include_directories(${PROJECT_NAME}_component
   PRIVATE
@@ -85,7 +88,7 @@ ament_target_dependencies(${PROJECT_NAME}_component
 # Register the component
 rclcpp_components_register_node(
   ${PROJECT_NAME}_component
-  PLUGIN "adore::TrajectoryTrackerNode"
+  PLUGIN "adore::TrajectoryTracker"
   EXECUTABLE trajectorytracker
 )
 

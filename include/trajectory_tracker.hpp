@@ -44,7 +44,7 @@ namespace adore
 {
 
 
-class TrajectoryTrackerNode : public rclcpp::Node
+class TrajectoryTracker: public rclcpp::Node
 {
 private:
 
@@ -66,7 +66,7 @@ private:
 
   std::map<std::string, double> controller_settings;
 
-  int controller_type;
+  std::string controller_type;
 
   dynamics::PhysicalVehicleModel model;
 
@@ -74,12 +74,13 @@ public:
 
   void indicators_on( bool left, bool right );
 
-  explicit TrajectoryTrackerNode( const rclcpp::NodeOptions& options );
+  explicit TrajectoryTracker( const rclcpp::NodeOptions& options );
 
   void load_parameters();
   void create_publishers();
   void create_subscribers();
   void initialize_controller();
+  void set_controller_type();
 
   void timer_callback();
 
