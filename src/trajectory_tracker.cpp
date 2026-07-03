@@ -175,6 +175,22 @@ TrajectoryTracker::update_blinker_state()
     indicators_on( true, true );
     return;
   }
+  // Obstacle-avoidance turn signal. The decision_maker gates a directional
+  // "... left)" / "... right)" suffix onto the trajectory label over exactly the
+  // window it wants signalled (from blinker_lead_distance ahead of the lateral
+  // shift start until the maximum shift is reached). A weather tag may be
+  // appended after it (e.g. "... left) (rain)"), so match the suffix as a
+  // substring rather than requiring it at the end of the label.
+  if( label.find( " left)" ) != std::string::npos )
+  {
+    indicators_on( true, false );
+    return;
+  }
+  if( label.find( " right)" ) != std::string::npos )
+  {
+    indicators_on( false, true );
+    return;
+  }
   indicators_on( false, false );
 }
 
