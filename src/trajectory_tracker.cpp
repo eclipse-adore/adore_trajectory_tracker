@@ -170,7 +170,7 @@ TrajectoryTracker::update_blinker_state()
     return;
   }
   const auto& label = latest_trajectory->label;
-  if( label == "Emergency Stop" || label == "Requesting Assistance" )
+  if( label == "Emergency Stop" || label.find("Minimum Risk Maneuver") != std::string::npos ||  label.find("remote operations") != std::string::npos )
   {
     indicators_on( true, true );
     return;
